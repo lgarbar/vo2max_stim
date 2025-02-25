@@ -7,6 +7,9 @@ parser = argparse.ArgumentParser(description='RPE Rating Task')
 parser.add_argument('--full',
                    action='store_true',
                    help='Show all questions. If not set, only shows RPE and Arousal questions.')
+parser.add_argument('--windowed', 
+                   action='store_true', 
+                   help='Run in windowed mode (default is fullscreen).')
 args = parser.parse_args()
 
 # Define dictionaries for different scales
@@ -134,7 +137,7 @@ def run_rpe(win=None, full=False, outlet=None):
         win = visual.Window(
             size=(1024, 768),
             units='height',
-            fullscr=False,
+            fullscr=not args.windowed,  # Use windowed argument to determine fullscreen
             color='gray'
         )
         should_close_win = True
@@ -240,6 +243,9 @@ def main():
     parser.add_argument('--full',
                        action='store_true',
                        help='Show all questions. If not set, only shows RPE and Arousal questions.')
+    parser.add_argument('--windowed', 
+                       action='store_true', 
+                       help='Run in windowed mode (default is fullscreen).')
     args = parser.parse_args()
     
     responses = run_rpe(full=args.full)

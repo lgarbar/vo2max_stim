@@ -2,18 +2,19 @@ from psychopy import visual, core, event
 import time
 from pylsl import StreamInfo, StreamOutlet
 from rpe_key import run_rpe
+import argparse
 
 class ExperimentFlow:
-    def __init__(self, screen=1):  # screen=1 for second monitor
+    def __init__(self, screen=1, fullscreen=True):  # screen=1 for second monitor
         # Set up LSL stream
         self.info = StreamInfo('ExperimentMarkers', 'Markers', 1, 0, 'string', 'uniqueid')
         self.outlet = StreamOutlet(self.info)
         
-        # Create fullscreen window on specified monitor
+        # Create window based on fullscreen parameter
         self.win = visual.Window(
             size=(1024, 768),
             units='height',
-            fullscr=True,
+            fullscr=not args.windowed,  # Use windowed argument to determine fullscreen
             screen=screen,  # Use specified monitor
             color='gray'
         )
@@ -134,6 +135,12 @@ class ExperimentFlow:
         core.quit()
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description='VO2Max Experiment')
+    parser.add_argument('--windowed', 
+                        action='store_true', 
+                        help='Run in windowed mode (default is fullscreen).')
+    args = parser.parse_args()
+    
     # Initialize with screen=1 for second monitor (adjust if needed)
-    experiment = ExperimentFlow(screen=1)
+    experiment = ExperimentFlow(screen=1, fullscreen=not args.windowed)
     experiment.run_experiment() 

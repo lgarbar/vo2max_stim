@@ -37,8 +37,13 @@ python vo2max.py
 
 ### Command-Line Arguments
 
+#### rpe_key.py
 - `--full`: Show all questions in the RPE assessment. If not set, only RPE and Arousal questions will be shown.
 - `--continuous`: Allow continuous values for the RPE rating. If not set, only discrete values from the tick marks are allowed.
+
+#### vo2max.py
+- `--windowed`: Run the experiment in windowed mode. By default, the experiment runs in fullscreen mode.
+
 
 ## Experiment Flow
 
