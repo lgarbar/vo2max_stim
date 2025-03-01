@@ -7,7 +7,7 @@ import argparse
 class ExperimentFlow:
     def __init__(self, screen=1, fullscreen=True):  # screen=1 for second monitor
         # Set up LSL stream
-        self.info = StreamInfo('ExperimentMarkers', 'Markers', 1, 0, 'string', 'uniqueid')
+        self.info = StreamInfo('StimMarkers', 'Markers', 1, 0, 'string', 'uniqueid')
         self.outlet = StreamOutlet(self.info)
         
         # Create window based on fullscreen parameter

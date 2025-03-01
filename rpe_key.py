@@ -40,7 +40,7 @@ titles = {'RPE':
              ]
           }
 
-def create_page(win, title, subtitle, value_dict):
+def create_page(win, title, subtitle, value_dict, full):
     """Create a page with title, subtitle, and slider based on the value dictionary"""
     # Create title text
     title_text = visual.TextStim(
@@ -68,8 +68,8 @@ def create_page(win, title, subtitle, value_dict):
         size=(0.8, 0.05),
         pos=(0, 0),
         units='height',
-        ticks=tick_values,
-        labels=None,
+        ticks=tick_values,  # Set ticks based on the keys of the value_dict
+        labels=None,  # Set labels to None as we will display numbers above the scale
         granularity=1.0,
         style='rating',
         color='white',
@@ -89,27 +89,44 @@ def create_page(win, title, subtitle, value_dict):
     
     # Create label display for tick marks with adjusted positions
     tick_labels = []
+    description_labels = []  # New list for description labels
     slider_range = tick_values[-1] - tick_values[0]
     for value in tick_values:
-        if value_dict[value]:  # Only create labels for non-empty strings
-            norm_pos = ((value - tick_values[0]) / slider_range - 0.5) * slider.size[0]
-            label = visual.TextStim(
+        norm_pos = ((value - tick_values[0]) / slider_range - 0.5) * slider.size[0]
+        value_label = visual.TextStim(
                 win=win,
-                text=value_dict[value],
-                pos=(norm_pos, -0.1),
+                text=str(value),  # Use the value itself as the label
+                pos=(norm_pos, 0.05),  # Position above the slider
                 height=0.03,
                 anchorHoriz='center',
                 wrapWidth=0.2
             )
-            tick_labels.append(label)
+        tick_labels.append(value_label)
+        if value_dict[value]:
+            # Create label for the description below the slider
+            description_label = visual.TextStim(
+                win=win,
+                text=value_dict[value],  # Use the description from the dictionary
+                pos=(norm_pos, -0.1),  # Position below the slider
+                height=0.03,
+                anchorHoriz='center',
+                wrapWidth=0.2
+            )
+            description_labels.append(description_label)
     
     # Create value display and response display
+    if not args.full or not full:
+        value_text = 'Use Left/Right buttons to move, Middle button to select'
+    else:
+        value_text = ''
+    print(value_text,(args.full, full))
+
     value_display = visual.TextStim(
-        win=win,
-        text='Use Left/Right buttons to move, Middle button to select',
-        pos=(0, -0.2),
-        height=0.05
-    )
+            win=win,
+            text=value_text,
+            pos=(0, -0.2),
+            height=0.05
+        )
     
     response_display = visual.TextStim(
         win=win,
@@ -119,9 +136,19 @@ def create_page(win, title, subtitle, value_dict):
         color='green'
     )
     
-    return title_text, subtitle_text, slider, tick_labels, value_display, response_display, position_indicator
+    # Remove the second red dot (position indicator)
+    position_indicator = visual.Circle(
+        win=win,
+        radius=0.015,  # Made slightly larger for better visibility
+        fillColor='red',
+        lineColor='red',
+        pos=(0, slider.pos[1])  # Keep the position indicator at the slider's position
+    )
+    
+    return title_text, subtitle_text, slider, tick_labels, description_labels, value_display, response_display, position_indicator
 
 def run_rpe(win=None, full=False, outlet=None):
+    global args
     """Run the RPE assessment
     
     Args:
@@ -133,6 +160,7 @@ def run_rpe(win=None, full=False, outlet=None):
     """
     # Create window if not provided
     should_close_win = False
+    args.full = full
     if win is None:
         win = visual.Window(
             size=(1024, 768),
@@ -148,14 +176,16 @@ def run_rpe(win=None, full=False, outlet=None):
     # Loop through each title and its pages
     i = 0
     for title, (value_dict, subtitles) in titles.items():
+        if title == 'RPE' or title == 'Arousal':
+            title = ''
         # Skip agreement questions if full is False
         if not full and title == 'Please indicate how much you agree with the following statements':
             continue
             
         for subtitle_key, subtitle_value in subtitles.items():  # Iterate over the dictionary
             # Create page elements
-            title_text, subtitle_text, slider, tick_labels, value_display, response_display, position_indicator = create_page(
-                win, title, subtitle_value, value_dict
+            title_text, subtitle_text, slider, tick_labels, description_labels, value_display, response_display, position_indicator = create_page(
+                win, title, subtitle_value, value_dict, full
             )
             
             response = None
@@ -211,6 +241,7 @@ def run_rpe(win=None, full=False, outlet=None):
 
                 # Update slider and position indicator
                 slider.rating = current_value
+                slider.setTicks(tick_values)  # Ensure the ticks are set to the keys of the value_dict
                 
                 # Calculate position for indicator
                 slider_range = tick_values[-1] - tick_values[0]
@@ -218,14 +249,16 @@ def run_rpe(win=None, full=False, outlet=None):
                 position_indicator.pos = (norm_pos, slider.pos[1])
                 
                 # Update value display
-                value_display.text = f'Current value: {int(current_value)}'
+                # value_display.text = f'Current value: {int(current_value)}'  # Removed current value display
                 
                 # Draw everything
                 title_text.draw()
                 subtitle_text.draw()
                 slider.draw()
                 for label in tick_labels:
-                    label.draw()
+                    label.draw()  # Draw value labels above the slider
+                for desc_label in description_labels:
+                    desc_label.draw()  # Draw description labels below the slider
                 value_display.draw()
                 response_display.draw()
                 position_indicator.draw()
