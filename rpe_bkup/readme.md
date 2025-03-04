@@ -39,7 +39,7 @@ python vo2max.py
 
 #### rpe_key.py
 - `--full`: Show all questions in the RPE assessment. If not set, only RPE and Arousal questions will be shown.
-- `--windowed`: Run the experiment in windowed mode. By default, the experiment runs in fullscreen mode.
+- `--continuous`: Allow continuous values for the RPE rating. If not set, only discrete values from the tick marks are allowed.
 
 #### vo2max.py
 - `--windowed`: Run the experiment in windowed mode. By default, the experiment runs in fullscreen mode.
@@ -51,16 +51,11 @@ python vo2max.py
 2. **RPE Assessment**: Participants provide their perceived exertion ratings using mouse clicks.
 3. **Rest and Warmup Screens**: Displays messages during rest and warmup phases.
 4. **VO2Max Sequence**: Conducts the VO2Max test with timed RPE assessments.
-5. **Cool Down Phase**: Displays a countdown timer for the cool-down phase, updating every minute with a message to record heart rate in REDCap.
-6. **Final Screens**: Displays messages after the experiment concludes.
+5. **Final Screens**: Displays messages after the experiment concludes.
 
 ## Data Collection
 
 Responses from the RPE assessments are collected and can be printed to the console at the end of the experiment. The data can also be streamed using LSL for real-time analysis.
-
-## Multiple Screen Support
-
-The experiment supports multiple screens, allowing for a more flexible setup. The RPE assessments and other stimuli can be displayed on different monitors as specified in the code.
 
 ## Cleanup
 

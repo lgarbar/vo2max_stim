@@ -42,60 +42,45 @@ titles = {'RPE':
 
 def create_page(win1, win2, title, subtitle, value_dict, full):
     """Create a page with title, subtitle, and slider based on the value dictionary"""
-    # Create title text for both windows (adjusted size and position)
+    # Create title text for both windows
     title_text1 = visual.TextStim(
         win=win1,
-        text='',
-        pos=(0, 0.4),  # Moved down
-        height=0.04  # Reduced size
+        text=title,
+        pos=(0, 0.4),
+        height=0.06
     )
     
     title_text2 = visual.TextStim(
         win=win2,
         text=title,
-        pos=(0, 0.3),  # Moved down
-        height=0.07  # Reduced size
+        pos=(0, 0.4),
+        height=0.06
     )
     
-    # Create subtitle text for both windows (adjusted size and position)
+    # Create subtitle text for both windows
     subtitle_text1 = visual.TextStim(
         win=win1,
-        text='',
-        pos=(0, 0.28),  # Moved down
-        height=0.035,  # Reduced size
+        text=subtitle,
+        pos=(0, 0.2),
+        height=0.05,
         wrapWidth=0.8
     )
     
     subtitle_text2 = visual.TextStim(
         win=win2,
         text=subtitle,
-        pos=(0, -0.2),  # Moved down
-        height=0.06,  # Reduced size
+        pos=(0, 0.2),
+        height=0.05,
         wrapWidth=0.8
     )
     
     # Get tick values for this page's scale
     tick_values = sorted(list(value_dict.keys()))
     
-    # Create slider with values from dictionary for both windows (doubled size)
+    # Create slider with values from dictionary for both windows
     slider1 = visual.Slider(
         win=win1,
-        size=(1.2, 0.1),  # Doubled width and height
-        pos=(0, 0.1),
-        units='height',
-        ticks=tick_values,
-        labels=None,
-        granularity=1.0,
-        style='rating',
-        color='white',
-        fillColor='red',
-        borderColor='white',
-        labelHeight=0.1  # Increased label height
-    )
-    
-    slider2 = visual.Slider(
-        win=win2,
-        size=(0, 0),  # Doubled width and height
+        size=(0.8, 0.05),
         pos=(0, 0),
         units='height',
         ticks=tick_values,
@@ -105,7 +90,22 @@ def create_page(win1, win2, title, subtitle, value_dict, full):
         color='white',
         fillColor='red',
         borderColor='white',
-        labelHeight=0.1  # Increased label height
+        labelHeight=0.05
+    )
+    
+    slider2 = visual.Slider(
+        win=win2,
+        size=(0.8, 0.05),
+        pos=(0, 0),
+        units='height',
+        ticks=tick_values,
+        labels=None,
+        granularity=1.0,
+        style='rating',
+        color='white',
+        fillColor='red',
+        borderColor='white',
+        labelHeight=0.05
     )
     
     # Create tick labels for both windows
@@ -117,12 +117,12 @@ def create_page(win1, win2, title, subtitle, value_dict, full):
     for value in tick_values:
         norm_pos = ((value - tick_values[0]) / (tick_values[-1] - tick_values[0]) - 0.5) * slider1.size[0]
         
-        # Create value label above the slider (doubled size)
+        # Create value label above the slider
         value_label1 = visual.TextStim(
             win=win1,
             text=str(value),
-            pos=(norm_pos, 0.2),  # Adjusted position
-            height=0.06,  # Increased size
+            pos=(norm_pos, 0.05),
+            height=0.03,
             anchorHoriz='center',
             wrapWidth=0.2
         )
@@ -130,21 +130,21 @@ def create_page(win1, win2, title, subtitle, value_dict, full):
         
         value_label2 = visual.TextStim(
             win=win2,
-            text='',
-            pos=(norm_pos, 0.1),  # Adjusted position
-            height=0.06,  # Increased size
+            text=str(value),
+            pos=(norm_pos, 0.05),
+            height=0.03,
             anchorHoriz='center',
             wrapWidth=0.2
         )
         tick_labels2.append(value_label2)
         
-        # Create description label below the slider (doubled size)
+        # Create description label below the slider
         if value_dict[value]:
             description_label1 = visual.TextStim(
                 win=win1,
                 text=value_dict[value],
-                pos=(norm_pos, -0.05),  # Adjusted position
-                height=0.05,  # Increased size
+                pos=(norm_pos, -0.1),
+                height=0.03,
                 anchorHoriz='center',
                 wrapWidth=0.2
             )
@@ -152,9 +152,9 @@ def create_page(win1, win2, title, subtitle, value_dict, full):
             
             description_label2 = visual.TextStim(
                 win=win2,
-                text='',
-                pos=(norm_pos, -0.15),  # Adjusted position
-                height=0.05,  # Increased size
+                text=value_dict[value],
+                pos=(norm_pos, -0.1),
+                height=0.03,
                 anchorHoriz='center',
                 wrapWidth=0.2
             )
@@ -164,21 +164,21 @@ def create_page(win1, win2, title, subtitle, value_dict, full):
     value_display1 = visual.TextStim(
         win=win1,
         text='Use Left/Right buttons to move, Middle button to select',
-        pos=(0, -0.3),
+        pos=(0, -0.2),
         height=0.05
     )
     
     value_display2 = visual.TextStim(
         win=win2,
-        text='',
-        pos=(0, -0.3),
+        text='Use Left/Right buttons to move, Middle button to select',
+        pos=(0, -0.2),
         height=0.05
     )
     
     response_display1 = visual.TextStim(
         win=win1,
         text='',
-        pos=(0, -0.4),
+        pos=(0, -0.3),
         height=0.05,
         color='green'
     )
@@ -186,7 +186,7 @@ def create_page(win1, win2, title, subtitle, value_dict, full):
     response_display2 = visual.TextStim(
         win=win2,
         text='',
-        pos=(0, -0.4),
+        pos=(0, -0.3),
         height=0.05,
         color='green'
     )

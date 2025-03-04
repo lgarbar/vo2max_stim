@@ -61,16 +61,12 @@ class ExperimentFlow:
     def show_screen(self, key, wait_for_space=True, duration=None):
         """Display screen with text and optionally wait for spacebar"""
         text = self.text_mapping[key]  # Get the text from the mapping
-        self.text_stim1.text = ''
+        self.text_stim1.text = text
         self.text_stim2.text = text
         
         # Send LSL onset marker
         self.outlet.push_sample([f'{key}_onset'])  # Use the key for LSL onset marker
 
-        if key == 'waiting_experiment':
-            self.text_stim1.text = text
-            self.text_stim2.text = text
-        
         if key == 'experiment_over':
             self.text_stim1.text = text
             self.text_stim2.text = "Experiment Over.\n5 minutes have passed. Record HR in REDCap"
