@@ -23,7 +23,7 @@ titles = {'RPE':
             [rpe_dict, 
              {'affect':'Please indicate the response that describes how you feel right now'}
              ],
-          'Arousal':
+          'By "arousal" here is meant how "worked up" you feel. You might experience high arousal in one of a variety of ways, for example, as excitement or anxiety or anger. Low arousal might also be experienced by you in one of a number of different ways, for example as relaxation or boredom or calmness.':
             [arousal_dict, 
              {'arousal':'Please indicate the response that describes best your level of arousal right now'}
              ],
@@ -53,8 +53,9 @@ def create_page(win1, win2, title, subtitle, value_dict, full):
     title_text2 = visual.TextStim(
         win=win2,
         text=title,
-        pos=(0, 0.3),  # Moved down
-        height=0.07  # Reduced size
+        pos=(0, 0.1),  # Moved down
+        height=0.05,
+        wrapWidth=1.6  # Reduced size
     )
     
     # Create subtitle text for both windows (adjusted size and position)
@@ -69,9 +70,9 @@ def create_page(win1, win2, title, subtitle, value_dict, full):
     subtitle_text2 = visual.TextStim(
         win=win2,
         text=subtitle,
-        pos=(0, -0.2),  # Moved down
+        pos=(0, -0.4),  # Moved down
         height=0.06,  # Reduced size
-        wrapWidth=0.8
+        wrapWidth=1.6
     )
     
     # Get tick values for this page's scale
@@ -186,7 +187,7 @@ def create_page(win1, win2, title, subtitle, value_dict, full):
     response_display2 = visual.TextStim(
         win=win2,
         text='',
-        pos=(0, -0.4),
+        pos=(0, -0.1),
         height=0.05,
         color='green'
     )
@@ -233,7 +234,7 @@ def run_rpe(win1=None, win2=None, full=False, outlet=None):
     # Loop through each title and its pages
     i = 0
     for title, (value_dict, subtitles) in titles.items():
-        if title == 'RPE' or title == 'Arousal':
+        if title == 'RPE':
             title = ''
         # Skip agreement questions if full is False
         if not full and title == 'Please indicate how much you agree with the following statements':
@@ -285,14 +286,17 @@ def run_rpe(win1=None, win2=None, full=False, outlet=None):
                     key_response = f"{subtitle_key}={int(current_value)}"  # Use subtitle_key for the response
                     all_responses[key_response] = current_value
                     
+                    # Update response display for win2
+                    response_display2.text = f"Response: {int(current_value)}"  # Show the recorded response
+                    
                     # Send LSL marker if outlet provided
                     if outlet:
                         outlet.push_sample([f'RPE_{key_response}'])
-                    
+                
+                # Check for spacebar to progress to the next question
+                keys = event.getKeys()
+                if 'space' in keys:  # If spacebar is pressed
                     i += 1  # Move to the next question
-                    # Wait until the middle button is released before allowing another submission
-                    while middle_click:  # Wait for the button to be released
-                        middle_click = mouse.getPressed()[1]  # Update the state of the middle button
                     break  # Exit the loop to proceed to the next screen
                 
                 last_middle_click = middle_click  # Update the last middle click state

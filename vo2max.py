@@ -82,6 +82,7 @@ class ExperimentFlow:
                 # Update the text stimulus for every minute
                 minutes_passed = int(elapsed_time // 60)
                 if 1 <= minutes_passed <= 5:  # Only show this message for the first 5 minutes
+                    self.outlet.push_sample([f'{key}_{minutes_passed}_hr'])
                     if minutes_passed == 1:
                         self.text_stim2.text = f"Cool Down\n{minutes_passed} minute has passed. Record HR in REDCap"
                     else:
@@ -108,6 +109,7 @@ class ExperimentFlow:
                 core.wait(1)  # Wait for 1 second before the next update
 
             # After 5 minutes, transition to the experiment_over screen
+            self.outlet.push_sample([f'cool_down_5_hr'])
             self.outlet.push_sample([f'{key}_offset'])  # Send LSL offset marker
             self.show_screen("experiment_over", wait_for_space=True)
 
@@ -184,7 +186,7 @@ class ExperimentFlow:
             self.show_screen(key)
         
         # First RPE assessment
-        self.run_rpe_assessment(full=False)
+        self.run_rpe_assessment(full=True)
         
         # Rest and Warmup screens
         for key in ["waiting_rest", "rest", "waiting_warmup", "warmup"]:
