@@ -43,7 +43,7 @@ class ExperimentFlow:
         )
         
         # VO2Max timing sequence (in seconds)
-        self.vo2max_intervals = [120, 360, 600, 840, 1080]
+        self.vo2max_intervals = [1, 120, 360, 600, 840, 1080]
 
         # Dictionary for text mappings
         self.text_mapping = {
@@ -51,6 +51,7 @@ class ExperimentFlow:
             "waiting_init_rpe": "Waiting to begin first RPE",
             "waiting_rest": "Waiting to begin Rest",
             "rest": "Rest",
+            "baseline": "Collecting Baseline VO2 and HR",
             "waiting_warmup": "Waiting to begin Warmup",
             "warmup": "Warmup",
             "vo2max": "VO2Max",
@@ -61,12 +62,16 @@ class ExperimentFlow:
     def show_screen(self, key, wait_for_space=True, duration=None):
         """Display screen with text and optionally wait for spacebar"""
         text = self.text_mapping[key]  # Get the text from the mapping
-        self.text_stim1.text = text
+        self.text_stim1.text = ''
         self.text_stim2.text = text
         
         # Send LSL onset marker
         self.outlet.push_sample([f'{key}_onset'])  # Use the key for LSL onset marker
 
+        if key == 'waiting_experiment':
+            self.text_stim1.text = text
+            self.text_stim2.text = text
+        
         if key == 'experiment_over':
             self.text_stim1.text = text
             self.text_stim2.text = "Experiment Over.\n5 minutes have passed. Record HR in REDCap"
@@ -78,6 +83,7 @@ class ExperimentFlow:
                 # Update the text stimulus for every minute
                 minutes_passed = int(elapsed_time // 60)
                 if 1 <= minutes_passed <= 5:  # Only show this message for the first 5 minutes
+                    self.outlet.push_sample([f'{key}_{minutes_passed}_hr'])
                     if minutes_passed == 1:
                         self.text_stim2.text = f"Cool Down\n{minutes_passed} minute has passed. Record HR in REDCap"
                     else:
@@ -104,6 +110,7 @@ class ExperimentFlow:
                 core.wait(1)  # Wait for 1 second before the next update
 
             # After 5 minutes, transition to the experiment_over screen
+            self.outlet.push_sample([f'cool_down_5_hr'])
             self.outlet.push_sample([f'{key}_offset'])  # Send LSL offset marker
             self.show_screen("experiment_over", wait_for_space=True)
 
@@ -141,6 +148,11 @@ class ExperimentFlow:
         self.outlet.push_sample(['rpe_onset'])
         responses = run_rpe(win1=self.win1, win2=self.win2, full=full, outlet=self.outlet)  # Ensure both windows are passed
         self.outlet.push_sample(['rpe_offset'])
+        
+        if responses is None:  # Check if the RPE assessment was terminated
+            print("RPE assessment was terminated by the user.")
+            return None  # Optionally return None or handle as needed
+
         return responses
     
     def vo2max_sequence(self):
@@ -180,11 +192,11 @@ class ExperimentFlow:
             self.show_screen(key)
         
         # First RPE assessment
-        self.run_rpe_assessment(full=False)
+        # self.run_rpe_assessment(full=True)
         
-        # Rest and Warmup screens
-        for key in ["waiting_rest", "rest", "waiting_warmup", "warmup"]:
-            self.show_screen(key)
+        # # Rest and Warmup screens
+        # for key in ["waiting_rest", "rest", "baseline", "warmup"]:
+        #     self.show_screen(key)
         
         # VO2Max sequence with timed RPE assessments
         self.vo2max_sequence()
