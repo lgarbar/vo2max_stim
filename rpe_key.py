@@ -2,6 +2,8 @@ import argparse
 from psychopy import visual, core, event
 import numpy as np
 from pynput import mouse as pynput_mouse  # Rename the pynput mouse module
+import threading
+import time
 
 # Add argument parser
 parser = argparse.ArgumentParser(description='RPE Rating Task')
@@ -11,6 +13,10 @@ parser.add_argument('--full',
 parser.add_argument('--windowed', 
                    action='store_true', 
                    help='Run in windowed mode (default is fullscreen).')
+parser.add_argument('--filename', 
+                        type=str, 
+                        default='data_log.csv', 
+                        help='Filename for logging data locally.')  # Added log_filename argument
 args = parser.parse_args()
 
 # Define dictionaries for different scales
@@ -99,15 +105,25 @@ def run_rpe(win1=None, win2=None, full=False, outlet=None):
     Returns:
         dict: responses from the assessment
     """
+    data_list = []
     # Create windows if not provided
-    should_close_win1 = False
-    should_close_win2 = False
     if win1 is None:
-        win1 = visual.Window(size=(1024, 768), units='height', fullscr=not args.windowed, screen=0, color='gray')
-        should_close_win1 = True
+        win1 = visual.Window(size=(1024, 768), units='height', fullscr=True, color='gray')
     if win2 is None:
-        win2 = visual.Window(size=(1024, 768), units='height', fullscr=not args.windowed, screen=1, color='gray')
-        should_close_win2 = True
+        win2 = visual.Window(size=(1024, 768), units='height', fullscr=True, color='gray')
+
+    # Create mouse object
+    mouse_controller = event.Mouse()
+
+    # Function to continuously reset mouse position
+    def lock_mouse_position():
+        while True:
+            mouse_controller.setPos((1, 1))  # Lock to center of the window
+            time.sleep(1)  # Sleep briefly to reduce CPU usage
+
+    # Start the thread to lock mouse position
+    mouse_lock_thread = threading.Thread(target=lock_mouse_position, daemon=True)
+    mouse_lock_thread.start()
 
     # Initialize dictionary to store all responses
     all_responses = {}
@@ -160,7 +176,7 @@ def run_rpe(win1=None, win2=None, full=False, outlet=None):
                 keys = event.getKeys()
                 if 'escape' in keys or 'enter' in keys or 'return' in keys:  # If escape key is pressed
                     listener.stop()  # Stop the listener
-                    return True  # Return None to indicate termination of RPE assessment
+                    return [True, data_list]  # Return None to indicate termination of RPE assessment
 
                 # Find current index in tick values
                 current_index = tick_values.index(current_value)
@@ -186,6 +202,10 @@ def run_rpe(win1=None, win2=None, full=False, outlet=None):
 
                 # Check for spacebar to progress to the next question
                 if 'space' in keys and response_text:  # Ensure a response has been recorded
+                    data = f'{subtitle_key}_{response_text}'
+                    timestamp = time.time()
+                    outlet.push_sample([data])
+                    data_list.append([data, timestamp])
                     break  # Exit the loop to proceed to the next screen
                 
                 last_middle_click = middle_click  # Update the last middle click state
@@ -228,13 +248,7 @@ def run_rpe(win1=None, win2=None, full=False, outlet=None):
             # Stop the listener after exiting the loop
             listener.stop()
 
-    # Close windows if we created them
-    if should_close_win1:
-        win1.close()
-    if should_close_win2:
-        win2.close()
-
-    return all_responses
+    return [False, data_list]
 
 def main():
     """Main function when running as script"""

@@ -157,6 +157,7 @@ class ExperimentFlow:
     
     def vo2max_sequence(self):
         """Run the VO2Max sequence with timed RPE assessments"""
+        terminate = False
         self.outlet.push_sample(['vo2max_offset'])
         start_time = time.time()
         next_interval_idx = 0
@@ -172,9 +173,11 @@ class ExperimentFlow:
             
             # Check for spacebar to exit sequence
             keys = event.getKeys(['space', 'escape'])
+            if 'return' in keys or 'enter' in keys:
+                terminate = True
             if 'escape' in keys:
                 self.cleanup()
-            if 'space' in keys:
+            if 'space' in keys or terminate:
                 self.outlet.push_sample(['vo2max_offset'])
                 break
             
@@ -182,7 +185,7 @@ class ExperimentFlow:
             current_time = time.time() - start_time
             if next_interval_idx < len(self.vo2max_intervals) and current_time >= self.vo2max_intervals[next_interval_idx]:
                 self.outlet.push_sample([f'rpe_assessment: {self.vo2max_intervals[next_interval_idx]}s'])
-                self.run_rpe_assessment(full=True)  # Pass both windows to the RPE assessment
+                terminate = self.run_rpe_assessment(full=True)  # Pass both windows to the RPE assessment
                 next_interval_idx += 1
     
     def run_experiment(self):
@@ -192,11 +195,11 @@ class ExperimentFlow:
             self.show_screen(key)
         
         # First RPE assessment
-        # self.run_rpe_assessment(full=True)
+        self.run_rpe_assessment(full=True)
         
         # # Rest and Warmup screens
-        # for key in ["waiting_rest", "rest", "baseline", "warmup"]:
-        #     self.show_screen(key)
+        for key in ["waiting_rest", "rest", "baseline", "warmup"]:
+            self.show_screen(key)
         
         # VO2Max sequence with timed RPE assessments
         self.vo2max_sequence()
