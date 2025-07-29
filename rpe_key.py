@@ -115,11 +115,15 @@ def run_rpe(win1=None, win2=None, full=False, outlet=None):
     # Create mouse object
     mouse_controller = event.Mouse()
 
+    # Add a threading.Event to control mouse locking
+    mouse_lock_active = threading.Event()
+    mouse_lock_active.set()  # Start as active
+
     # Function to continuously reset mouse position
     def lock_mouse_position():
-        while True:
-            mouse_controller.setPos((1, 1))  # Lock to center of the window
-            time.sleep(1)  # Sleep briefly to reduce CPU usage
+        while mouse_lock_active.is_set():
+            mouse_controller.setPos((-1, -1))
+            time.sleep(0.05)  # Sleep briefly to reduce CPU usage
 
     # Start the thread to lock mouse position
     mouse_lock_thread = threading.Thread(target=lock_mouse_position, daemon=True)
@@ -127,18 +131,31 @@ def run_rpe(win1=None, win2=None, full=False, outlet=None):
 
     # Initialize dictionary to store all responses
     all_responses = {}
-
+    title_ind = 0
     # Loop through each title and its pages
-    for title, (value_dict, subtitles) in titles.items():
+    while title_ind < len(titles):
+        regress = False
+        title = list(titles.keys())[title_ind]
+        (value_dict, subtitles) = titles[title]
+    # for title, (value_dict, subtitles) in titles.items():
         response_text = ""  # Reset response_text for each page
+        fill_color = 'red'
         if title == 'RPE':
             title = ''
         # Skip agreement questions if full is False
         if not full and title == 'Please indicate how much you agree with the following statements':
+            if title_ind == 2:
+                break
             continue
-            
-        for subtitle_key, subtitle_value in subtitles.items():  # Iterate over the dictionary
+        
+        subtitle_ind = 0
+        while subtitle_ind < len(subtitles):
+            if regress:
+                break
+            subtitle_key = list(subtitles.keys())[subtitle_ind]
+            subtitle_value = subtitles[subtitle_key]
             response_text = ""  # Reset response_text for each subtitle
+            fill_color = 'red'
             # Create page elements
             (title_text1, subtitle_text1, slider1, value_display1, response_display1, tick_labels1, description_labels1), \
              (title_text2, subtitle_text2, slider2, value_display2, response_display2, tick_labels2, description_labels2) = create_page(
@@ -157,12 +174,13 @@ def run_rpe(win1=None, win2=None, full=False, outlet=None):
 
             # Set up pynput listener for mouse buttons
             def on_click(x, y, button, pressed):
-                nonlocal current_value, all_responses, subtitle_key, response_text
+                nonlocal current_value, all_responses, subtitle_key, response_text, fill_color
                 if pressed:
                     if button == pynput_mouse.Button.middle or button == pynput_mouse.Button.x1:  # Check for middle button or XButton1
                         # Format response as key=value
                         key_response = f"{subtitle_key}={int(current_value)}"  # Use subtitle_key for the response
                         all_responses[key_response] = current_value
+                        fill_color = 'green'
                         
                         # Store the response text to be updated in the main loop
                         response_text = f"Response: {int(current_value)}"
@@ -171,11 +189,17 @@ def run_rpe(win1=None, win2=None, full=False, outlet=None):
             listener = pynput_mouse.Listener(on_click=on_click)
             listener.start()
 
+            keys = event.getKeys()
+            keys.remove('return') if 'return' in keys else keys
+            
             while True:
                 # Check for escape key to exit RPE assessment
                 keys = event.getKeys()
                 if 'escape' in keys or 'enter' in keys or 'return' in keys:  # If escape key is pressed
                     listener.stop()  # Stop the listener
+                    # At every return point (including escape/exit), clear the event and join the thread
+                    mouse_lock_active.clear()
+                    mouse_lock_thread.join(timeout=0.1)
                     return [True, data_list]  # Return None to indicate termination of RPE assessment
 
                 # Find current index in tick values
@@ -206,7 +230,16 @@ def run_rpe(win1=None, win2=None, full=False, outlet=None):
                     timestamp = time.time()
                     outlet.push_sample([data])
                     data_list.append([data, timestamp])
-                    break  # Exit the loop to proceed to the next screen
+                    subtitle_ind += 1
+                    break
+
+                if 'left' in keys and title_ind > 0:
+                    if subtitle_ind == 0:
+                        regress = True
+                        title_ind -= 2
+                    else:
+                        subtitle_ind -= 1
+                    break
                 
                 last_middle_click = middle_click  # Update the last middle click state
 
@@ -215,6 +248,7 @@ def run_rpe(win1=None, win2=None, full=False, outlet=None):
                 slider1.setTicks(tick_values)  # Ensure the ticks are set to the keys of the value_dict
                 
                 # Draw everything on both windows
+                slider1.fillColor = fill_color
                 title_text1.draw()
                 subtitle_text1.draw()
                 slider1.draw()
@@ -247,7 +281,11 @@ def run_rpe(win1=None, win2=None, full=False, outlet=None):
 
             # Stop the listener after exiting the loop
             listener.stop()
+        title_ind += 1
 
+    # At the very end of run_rpe, after the main loop, also clear and join
+    mouse_lock_active.clear()
+    mouse_lock_thread.join(timeout=0.1)
     return [False, data_list]
 
 def main():

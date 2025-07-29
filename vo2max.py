@@ -4,12 +4,14 @@ from pylsl import StreamInfo, StreamOutlet
 from rpe_key import run_rpe
 import argparse
 import csv  # Add this import at the top
+import threading
 
 class ExperimentFlow:
     def __init__(self, screen=1, fullscreen=True, filename='data_log.csv'):  # Added filename parameter
         # Set up LSL stream
         self.info = StreamInfo('StimMarkers', 'Markers', 1, 0, 'string', 'uniqueid')
         self.outlet = StreamOutlet(self.info)
+        self.terminate_requested = False
         
         # Create two windows based on fullscreen parameter
         self.win1 = visual.Window(
@@ -52,8 +54,8 @@ class ExperimentFlow:
             "waiting_init_rpe": "Waiting to begin first RPE",
             "waiting_rest": "Waiting to begin Rest",
             "rest": "Rest",
+            "waiting_baseline": "Waiting to begin baseline collection",
             "baseline": "Collecting Baseline VO2 and HR",
-            "waiting_warmup": "Waiting to begin Warmup",
             "warmup": "Warmup",
             "vo2max": "VO2Max",
             "cool_down": "Cool Down",
@@ -62,7 +64,8 @@ class ExperimentFlow:
         
         self.filename = filename  # Store the log filename
         self.setup_logging()  # Set up logging when initializing
-        
+        # Remove mouse_lock_active, mouse_lock_thread, and terminate_requested if only used for mouse lock
+
     def setup_logging(self):
         """Set up the CSV file for logging data."""
         self.log_file = open(self.filename, mode='w', newline='')
@@ -100,6 +103,8 @@ class ExperimentFlow:
             start_time = time.time()
             elapsed_time = 0
             while elapsed_time < 300:  # 5 minutes = 300 seconds
+                if self.terminate_requested:
+                    return
                 # Update the text stimulus for every minute
                 minutes_passed = int(elapsed_time // 60)
                 if 1 <= minutes_passed <= 5:  # Only show this message for the first 5 minutes
@@ -122,7 +127,8 @@ class ExperimentFlow:
                 keys = event.getKeys(['space', 'escape'])
                 if 'escape' in keys:
                     self.cleanup()
-                if 'space' in keys:
+                    return
+                if 'space' in keys and elapsed_time > 200:
                     break  # Skip to the next screen
 
                 # Update elapsed time
@@ -138,6 +144,8 @@ class ExperimentFlow:
             if duration:
                 timer = core.CountdownTimer(duration)
                 while timer.getTime() > 0:
+                    if self.terminate_requested:
+                        return
                     # Draw text stimuli in both windows
                     self.text_stim1.draw()
                     self.text_stim2.draw()
@@ -145,8 +153,11 @@ class ExperimentFlow:
                     self.win2.flip()
                     if event.getKeys(['escape']):
                         self.cleanup()
+                        return
             else:
                 while True:
+                    if self.terminate_requested:
+                        return
                     # Draw text stimuli in both windows
                     self.text_stim1.draw()
                     self.text_stim2.draw()
@@ -156,6 +167,7 @@ class ExperimentFlow:
                     keys = event.getKeys(['space', 'escape'])
                     if 'escape' in keys:
                         self.cleanup()
+                        return
                     if wait_for_space and 'space' in keys:
                         # Check if the key contains 'waiting'
                         if 'waiting' not in key:
@@ -167,7 +179,6 @@ class ExperimentFlow:
         """Run the RPE assessment using the imported function"""
         self.push_sample(['rpe_onset'])
         responses = run_rpe(win1=self.win1, win2=self.win2, full=full, outlet=self.outlet)  # Ensure both windows are passed
-        print(responses[1])
         for data in responses[1]:
             self.log_data(data)
         self.push_sample(['rpe_offset'])
@@ -179,13 +190,18 @@ class ExperimentFlow:
         return responses
     
     def vo2max_sequence(self):
-        """Run the VO2Max sequence with timed RPE assessments"""
+        self.show_screen("warmup", duration=10)
         terminate = False
         self.push_sample(['vo2max_offset'])
         start_time = time.time()
         next_interval_idx = 0
-        
-        while next_interval_idx < len(self.vo2max_intervals):
+
+        keys = event.getKeys(['space', 'escape', 'return', 'enter'])
+        keys.remove('return') if 'return' in keys else keys
+
+        while next_interval_idx < len(self.vo2max_intervals) and not terminate:
+            if self.terminate_requested:
+                return
             # Show VO2Max screen in both windows
             self.text_stim1.text = ""
             self.text_stim2.text = "VO2Max"
@@ -193,49 +209,51 @@ class ExperimentFlow:
             self.text_stim2.draw()
             self.win1.flip()
             self.win2.flip()
-            
-            # Check for spacebar to exit sequence
-            keys = event.getKeys(['space', 'escape'])
+
+            keys = event.getKeys(['space', 'escape', 'return', 'enter'])
             if 'return' in keys or 'enter' in keys:
                 terminate = True
             if 'escape' in keys:
                 self.cleanup()
+                return
             if 'space' in keys or terminate:
                 self.push_sample(['vo2max_offset'])
                 break
-            
+
             # Check if it's time for RPE assessment
-            current_time = time.time() - start_time
+            current_time = time.time() - start_time + 10
             if next_interval_idx < len(self.vo2max_intervals) and current_time >= self.vo2max_intervals[next_interval_idx]:
                 self.push_sample([f'rpe_assessment: {self.vo2max_intervals[next_interval_idx]}s'])
-                terminate = self.run_rpe_assessment(full=True)  # Pass both windows to the RPE assessment
+                terminate = self.run_rpe_assessment(full=True)
                 terminate = terminate[0]
                 next_interval_idx += 1
-    
+
     def run_experiment(self):
-        """Run the full experiment sequence"""
-        # Initial screens
-        for key in ["waiting_experiment", "waiting_init_rpe"]:
-            self.show_screen(key)
-        
-        # # First RPE assessment
-        # self.run_rpe_assessment()
-        
-        # # # Rest and Warmup screens
-        # for key in ["waiting_rest", "rest", "baseline", "warmup"]:
+        # Make the mouse invisible at the start of the experiment
+
+        # # Initial screens
+        # for key in ["waiting_experiment", "waiting_init_rpe"]:
         #     self.show_screen(key)
-        
+
+        # First RPE assessment
+        # test = self.run_rpe_assessment()
+
+        # # # Rest and Warmup screens
+        # for key in ["waiting_rest", "rest", "waiting_baseline", "baseline"]:
+        #     self.show_screen(key)
+
         # VO2Max sequence with timed RPE assessments
         self.vo2max_sequence()
-        
+
         # Final screens
         for key in ["cool_down", "experiment_over"]:
             self.show_screen(key)
-        
+
         self.cleanup()
-    
+
     def cleanup(self):
         """Clean up and exit"""
+        self.terminate_requested = True
         self.log_file.close()  # Close the log file
         self.win1.close()
         self.win2.close()
@@ -253,5 +271,5 @@ if __name__ == "__main__":
     args = parser.parse_args()
     
     # Initialize with screen=1 for second monitor (adjust if needed)
-    experiment = ExperimentFlow(screen=1, fullscreen=not args.windowed, filename=args.filename)  # Pass filename
+    experiment = ExperimentFlow(screen=0, fullscreen=not args.windowed, filename=args.filename)  # Pass filename
     experiment.run_experiment()

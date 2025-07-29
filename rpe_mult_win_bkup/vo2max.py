@@ -3,9 +3,10 @@ import time
 from pylsl import StreamInfo, StreamOutlet
 from rpe_key import run_rpe
 import argparse
+import csv  # Add this import at the top
 
 class ExperimentFlow:
-    def __init__(self, screen=1, fullscreen=True):  # Removed testing parameter
+    def __init__(self, screen=1, fullscreen=True, filename='data_log.csv'):  # Added filename parameter
         # Set up LSL stream
         self.info = StreamInfo('StimMarkers', 'Markers', 1, 0, 'string', 'uniqueid')
         self.outlet = StreamOutlet(self.info)
@@ -15,7 +16,7 @@ class ExperimentFlow:
             size=(860, 480),
             units='height',
             fullscr=not args.windowed,  # Use windowed argument to determine fullscreen
-            screen=1,  # Use second monitor
+            screen=2,  # Use second monitor
             color='gray'
         )
         
@@ -59,6 +60,25 @@ class ExperimentFlow:
             "experiment_over": "The experiment is over. Thank you for your participation."
         }
         
+        self.filename = filename  # Store the log filename
+        self.setup_logging()  # Set up logging when initializing
+        
+    def setup_logging(self):
+        """Set up the CSV file for logging data."""
+        self.log_file = open(self.filename, mode='w', newline='')
+        self.csv_writer = csv.writer(self.log_file)
+        self.csv_writer.writerow(['StimMarkersAlpha', 'Timestamp'])  # Write header row
+
+    def log_data(self, data):
+        """Log data to the CSV file."""
+        self.csv_writer.writerow(data)  # Write timestamp and data to CSV
+
+    def push_sample(self, data):
+        """Push sample to LSL and log it."""
+        self.outlet.push_sample(data)  # Original LSL push
+        timestamp = time.time()
+        self.log_data(data + [timestamp])  # Log the entire data array locally
+
     def show_screen(self, key, wait_for_space=True, duration=None):
         """Display screen with text and optionally wait for spacebar"""
         text = self.text_mapping[key]  # Get the text from the mapping
@@ -66,7 +86,7 @@ class ExperimentFlow:
         self.text_stim2.text = text
         
         # Send LSL onset marker
-        self.outlet.push_sample([f'{key}_onset'])  # Use the key for LSL onset marker
+        self.push_sample([f'{key}_onset'])  # Use the key for LSL onset marker
 
         if key == 'waiting_experiment':
             self.text_stim1.text = text
@@ -83,7 +103,7 @@ class ExperimentFlow:
                 # Update the text stimulus for every minute
                 minutes_passed = int(elapsed_time // 60)
                 if 1 <= minutes_passed <= 5:  # Only show this message for the first 5 minutes
-                    self.outlet.push_sample([f'{key}_{minutes_passed}_hr'])
+                    self.push_sample([f'{key}_{minutes_passed}_hr'])
                     if minutes_passed == 1:
                         self.text_stim2.text = f"Cool Down\n{minutes_passed} minute has passed. Record HR in REDCap"
                     else:
@@ -110,8 +130,8 @@ class ExperimentFlow:
                 core.wait(1)  # Wait for 1 second before the next update
 
             # After 5 minutes, transition to the experiment_over screen
-            self.outlet.push_sample([f'cool_down_5_hr'])
-            self.outlet.push_sample([f'{key}_offset'])  # Send LSL offset marker
+            self.push_sample([f'cool_down_5_hr'])
+            self.push_sample([f'{key}_offset'])  # Send LSL offset marker
             self.show_screen("experiment_over", wait_for_space=True)
 
         else:
@@ -140,14 +160,17 @@ class ExperimentFlow:
                         # Check if the key contains 'waiting'
                         if 'waiting' not in key:
                             # Send LSL offset marker only if the key does not contain 'waiting'
-                            self.outlet.push_sample([f'{key}_offset'])  # Use the key for LSL offset marker
+                            self.push_sample([f'{key}_offset'])  # Use the key for LSL offset marker
                         break
 
     def run_rpe_assessment(self, full=False):
         """Run the RPE assessment using the imported function"""
-        self.outlet.push_sample(['rpe_onset'])
+        self.push_sample(['rpe_onset'])
         responses = run_rpe(win1=self.win1, win2=self.win2, full=full, outlet=self.outlet)  # Ensure both windows are passed
-        self.outlet.push_sample(['rpe_offset'])
+        print(responses[1])
+        for data in responses[1]:
+            self.log_data(data)
+        self.push_sample(['rpe_offset'])
         
         if responses is None:  # Check if the RPE assessment was terminated
             print("RPE assessment was terminated by the user.")
@@ -158,7 +181,7 @@ class ExperimentFlow:
     def vo2max_sequence(self):
         """Run the VO2Max sequence with timed RPE assessments"""
         terminate = False
-        self.outlet.push_sample(['vo2max_offset'])
+        self.push_sample(['vo2max_offset'])
         start_time = time.time()
         next_interval_idx = 0
         
@@ -178,14 +201,15 @@ class ExperimentFlow:
             if 'escape' in keys:
                 self.cleanup()
             if 'space' in keys or terminate:
-                self.outlet.push_sample(['vo2max_offset'])
+                self.push_sample(['vo2max_offset'])
                 break
             
             # Check if it's time for RPE assessment
             current_time = time.time() - start_time
             if next_interval_idx < len(self.vo2max_intervals) and current_time >= self.vo2max_intervals[next_interval_idx]:
-                self.outlet.push_sample([f'rpe_assessment: {self.vo2max_intervals[next_interval_idx]}s'])
+                self.push_sample([f'rpe_assessment: {self.vo2max_intervals[next_interval_idx]}s'])
                 terminate = self.run_rpe_assessment(full=True)  # Pass both windows to the RPE assessment
+                terminate = terminate[0]
                 next_interval_idx += 1
     
     def run_experiment(self):
@@ -194,12 +218,12 @@ class ExperimentFlow:
         for key in ["waiting_experiment", "waiting_init_rpe"]:
             self.show_screen(key)
         
-        # First RPE assessment
-        self.run_rpe_assessment(full=True)
+        # # First RPE assessment
+        # self.run_rpe_assessment()
         
-        # # Rest and Warmup screens
-        for key in ["waiting_rest", "rest", "baseline", "warmup"]:
-            self.show_screen(key)
+        # # # Rest and Warmup screens
+        # for key in ["waiting_rest", "rest", "baseline", "warmup"]:
+        #     self.show_screen(key)
         
         # VO2Max sequence with timed RPE assessments
         self.vo2max_sequence()
@@ -212,6 +236,7 @@ class ExperimentFlow:
     
     def cleanup(self):
         """Clean up and exit"""
+        self.log_file.close()  # Close the log file
         self.win1.close()
         self.win2.close()
         core.quit()
@@ -221,8 +246,12 @@ if __name__ == "__main__":
     parser.add_argument('--windowed', 
                         action='store_true', 
                         help='Run in windowed mode (default is fullscreen).')
+    parser.add_argument('--filename', 
+                        type=str, 
+                        default='data_log.csv', 
+                        help='Filename for logging data locally.')  # Added filename argument
     args = parser.parse_args()
     
     # Initialize with screen=1 for second monitor (adjust if needed)
-    experiment = ExperimentFlow(screen=1, fullscreen=not args.windowed)
+    experiment = ExperimentFlow(screen=1, fullscreen=not args.windowed, filename=args.filename)  # Pass filename
     experiment.run_experiment()

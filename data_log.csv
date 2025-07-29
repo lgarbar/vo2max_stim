@@ -1,0 +1,28 @@
+StimMarkersAlpha,Timestamp
+waiting_experiment_onset,1750017375.3021393
+waiting_init_rpe_onset,1750017381.7172456
+rpe_onset,1750017381.8822517
+affect_Response: 5,1750017385.7199686
+affect_Response: 4,1750017391.6575315
+arousal_Response: 1,1750017394.1500278
+rpe_offset,1750017394.1510243
+waiting_rest_onset,1750017394.1590323
+rest_onset,1750017395.8469968
+rest_offset,1750017395.9769967
+waiting_baseline_onset,1750017395.9809966
+baseline_onset,1750017396.153258
+baseline_offset,1750017396.276158
+warmup_onset,1750017396.2831585
+vo2max_offset,1750017406.310018
+rpe_assessment: 1s,1750017407.3449569
+rpe_onset,1750017407.3449569
+affect_Response: 1,1750017409.8877652
+arousal_Response: 4,1750017411.15071
+cog_appraisal_a_Response: 3,1750017412.560881
+cog_appraisal_c_Response: 3,1750017415.6174488
+cog_appraisal_d_Response: 4,1750017417.4917045
+cog_appraisal_e_Response: 3,1750017418.8862262
+cog_appraisal_f_Response: 3,1750017420.381217
+cog_appraisal_g_Response: 3,1750017421.4911811
+cog_appraisal_h_Response: 3,1750017422.8801782
+rpe_offset,1750017422.883178
